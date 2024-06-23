@@ -1,0 +1,90 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 430px;
+    height: 680px;
+    box-shadow: 0 0 10px rgba(0.1, 0.1, 0.1, 0.5);
+    background: #f9f9f9;
+    overflow: hidden; /* 새로 추가: 오버플로우 컨텐츠 숨김 */
+}
+
+/* 모바일 뷰포트 크기에 따른 스타일 */
+@media only screen and (max-width: 767px) {
+    .container {
+        width: 100%; /* 모바일 화면 너비에 맞춤 */
+        height: 100%; /* 또는 실제 뷰포트 높이에 맞는 값 */
+        overflow: auto; /* 필요 시 스크롤 */
+    }
+
+    .header {
+        position: fixed; /* 헤더를 상단에 고정 */
+        top: 0;
+        width: 100vw; /* 뷰포트 너비에 맞춤 */
+        box-sizing: border-box; /* 패딩과 테두리를 너비에 포함 */
+        z-index: 10;
+        background: orange; /* 배경색 유지 */
+        /* 기타 스타일 */
+    }
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* 뷰포트의 높이에 맞춤 */
+    margin: 0;
+    background: white;
+    font-family: 'Arial', sans-serif;
+    background-image: url('../images/background/art_download.png'); /* 배경 이미지 설정 */
+    background-size: cover; /* 배경 이미지가 뷰포트를 전체적으로 커버하도록 설정 */
+    background-position: top; /* 배경 이미지가 중앙에 위치하도록 설정 */
+    background-repeat: no-repeat; /* 배경 이미지가 반복되지 않도록 설정 */
+}
+
+.header {
+    position: relative;
+    background: orange;
+    color: white;
+    padding: 10px;
+    text-align: center;
+}
+
+    .header .time {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+    }
+
+    .header .exit {
+        top: 10px;
+        left: 20px;
+        font-size: 20px;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+/* 스크롤바 전체 스타일 */
+::-webkit-scrollbar {
+    width: 0.7vh; /* 스크롤바의 너비 */
+}
+
+/* 스크롤바 핸들 스타일 */
+::-webkit-scrollbar-thumb {
+    background: #888; /* 핸들의 색상 */
+    border-radius: 6px; /* 핸들의 둥근 모서리 */
+    height: 10vh; /* thumb 높이 */
+}
+
+/* 스크롤바 트랙(배경) 스타일 */
+::-webkit-scrollbar-track {
+}
+
+/* 기본 스크롤바 스타일 */
+::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+/* 스크롤 중 스크롤바 스타일 */
+.scroll-active::-webkit-scrollbar-thumb {
+    background: #555;
+}

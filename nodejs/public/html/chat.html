@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메신저 앱</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/chat.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="time">12:27</div>
+            <div class="exit" onclick="goBack()">
+                <span id="chatname">대화방
+            </span></div>
+        </div>
+        <div class="messages" id="messages">
+            <!-- 메시지가 여기에 동적으로 추가됩니다 -->
+        </div>
+        <div class="message-input">
+            <input type="text" id="messageInput" class="input-field" placeholder="메시지를 입력하세요" autofocus="">
+            <button id="messageButton" onclick="showText()" class="send-button">보내기</button>
+        </div>
+    </div>
+    <script src="/js/common.js"></script>
+    <script src="/js/chat.js"></script>
+
+
+</body></html>
