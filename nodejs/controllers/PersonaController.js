@@ -53,6 +53,12 @@ exports.loadPersona = (characterID) => {
     };
 };
 
+// 게임에서 모은 실제 대사 (characters/_samples/<characterID>.md, git에 올라가지 않음)
+exports.loadSamples = (characterID) => {
+    const filePath = path.join(CHARACTER_DIR, '_samples', `${characterID}.md`);
+    return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8').trim() : '';
+};
+
 // 모든 캐릭터가 공유하는 세계관 (characters/_world.md)
 exports.loadWorld = () => {
     const filePath = path.join(CHARACTER_DIR, '_world.md');

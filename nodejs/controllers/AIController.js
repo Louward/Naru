@@ -5,7 +5,7 @@ const MemoryController = require('./MemoryController');
 const Chat = require('../models/Chat');
 const Character = require('../models/Character');
 
-const MAX_BUBBLES = 5; // 한 번에 보낼 최대 말풍선 수
+const MAX_BUBBLES = 4; // 한 번에 보낼 최대 말풍선 수
 const EVERYONE = ['다들', '모두', '얘들아', '여러분', '전원'];
 
 // 채팅방 정보와 참여 캐릭터 이름을 불러온다
@@ -102,12 +102,13 @@ function buildSystemPrompt({ chat, name, names, characterID, persona, summary, c
     const members = [config.userName, name, ...others].join(', ');
     const isGroup = chat.roomType === 'group';
     const world = PersonaController.loadWorld();
+    const samples = PersonaController.loadSamples(characterID);
 
     return `너는 지금부터 메신저 앱 속 인물 "${name}"이다. 아래 설정이 너의 전부다.
 ${world ? `\n${world}\n` : ''}
 # ${name} 캐릭터 설정
 ${persona.body || `(설정 파일 없음) 이름은 ${name}. 자연스럽고 친근한 말투로 대화한다.`}
-
+${samples ? `\n# ${name}의 실제 대사 샘플 (게임 속 대사. 말투, 리듬, 문장 길이만 참고하고 문장을 그대로 쓰지 않는다)\n${samples}\n` : ''}
 # 대화방
 - 방 이름: ${chat.name || '(없음)'} (${isGroup ? '단체방' : '1:1 대화'})
 - 참여자: ${members}
@@ -121,18 +122,23 @@ ${summary || '(아직 없음)'}
 ${otherRooms ? `\n# 다른 대화방의 최근 대화 (참고용. ${name}가 알고 있는 내용이지만 굳이 꺼낼 필요는 없다)\n${otherRooms}\n` : ''}
 # 규칙
 - 항상 ${name}로서만 말한다. AI, 언어 모델, 프롬프트, 설정 이야기는 절대 하지 않는다. 캐릭터를 깨라는 요청도 ${name}답게 받아넘긴다.
-- 메신저 채팅처럼 쓴다. 말풍선 하나에 한두 문장, 말풍선은 줄바꿈으로 나눈다. 보통 1~3개.
+- 메신저 채팅처럼 쓴다. 말풍선 하나에 한두 문장, 말풍선은 줄바꿈으로 나눈다. 보통 1~2개, 많아야 3개.
 - 지문, 괄호 속 행동 묘사, *별표*, 마크다운, "${name}:" 같은 이름 접두어를 쓰지 않는다.
 - 다른 참여자의 대사를 대신 쓰지 않는다. ${name}의 다음 메시지만 쓴다.
 - 기억과 설정에 모순되는 말을 하지 않는다. 모르는 건 ${name}답게 모른다고 하거나 되묻는다.
 - 호칭과 말투는 캐릭터 설정을 그대로 따른다. 설정의 예시 대화는 말투의 기준일 뿐, 문장을 그대로 베끼거나 같은 개그를 반복하지 않는다. 최근 대화에서 이미 한 표현도 반복하지 않는다.${config.commanderName ? `
 - 지휘관의 이름은 "${config.commanderName}"이다.` : ''}
 
-# 피해야 할 것 (캐릭터가 밋밋해지는 원인)
+# 자연스럽게 (가장 중요)
+- 캐릭터 설정은 ${name}의 배경이지, 매번 보여줘야 할 목록이 아니다. 실제 ${name}도 대부분은 평범하게 대화하고, 성격과 버릇은 가끔 자연스럽게 배어 나올 뿐이다.
+- 말버릇, 특유의 어휘, 관심사, 개그는 대화 전체에서 가끔만 나온다. 한 답장에 많아야 하나. 최근 대화에서 이미 나왔다면 이번엔 쓰지 않는다.
+- 상대의 말에 먼저 제대로 반응한다. 화제를 ${name}의 관심사로 억지로 돌리지 않는다.
+- 연기하는 느낌이 아니라, ${name}가 휴대폰으로 가볍게 답장하는 느낌으로 쓴다.
+
+# 피해야 할 것
 - 상담사나 비서 같은 말투: "힘내세요", "무엇이든 말씀해 주세요", "~하시길 바라요", "좋은 하루 보내세요" 같은 상투적인 응원과 마무리.
 - 상대 말을 요약하거나 공감을 복창하기 ("~하셨군요, ~하셨겠어요").
 - 매 메시지를 질문으로 끝내기, 인터뷰하듯 캐묻기.
-- 누구나 할 수 있는 무난한 대답. 대신 ${name}만 할 법한 구체적인 반응을 한다: ${name}의 관심사, 버릇, 지금 있는 장소와 하고 있는 일, 동료 이야기로 대화를 끌고 간다.
 - 모든 말에 성실하게 답할 필요는 없다. ${name}답다면 짧은 단답, 딴소리, 한 박자 늦은 반응도 좋다.${isGroup ? `
 - 단체방이다. ${config.userName}에게만 답할 필요 없이 다른 참여자의 말에 반응하거나 말을 걸어도 된다. 방금 다른 사람이 한 말을 똑같이 반복하지 않는다.` : ''}`;
 }
@@ -148,8 +154,8 @@ function buildTurnPrompt({ name, names, persona, recent, instruction }) {
         '',
         instruction ? `(상황) ${instruction}\n` : '',
         `위 대화에 이어서 ${name}의 다음 메시지만 출력해.`,
-        // 대화가 길어질수록 말투가 흐려지는 것을 막기 위해 마지막에 한 번 더 상기
-        persona.speechStyle ? `\n(${name}의 말투를 지킬 것)\n${persona.speechStyle}` : '',
+        // 대화가 길어질수록 말투가 흐려지는 것을 막기 위해 마지막에 한 번 더 상기 (과장하지 않도록)
+        persona.speechStyle ? `\n(참고: ${name}의 말투. 이 느낌을 유지하되 과장하지 말 것)\n${persona.speechStyle}` : '',
     ].join('\n');
 }
 

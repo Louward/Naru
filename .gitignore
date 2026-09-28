@@ -4,3 +4,5 @@ node_modules/
 # 게임 이미지는 저작권이 있으므로 저장소에 올리지 않음
 nodejs/public/images/nikke/*
 !nodejs/public/images/nikke/.gitkeep
+nodejs/characters/_samples/*
+!nodejs/characters/_samples/README.md
