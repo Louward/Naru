@@ -9,7 +9,6 @@ let messageButton = document.getElementById('messageButton');
 // 채팅방 초기화 함수
 async function initializeChat() {
     const chatID = extractChatId();
-    await threadCheck(chatID);
     await fetchChatroomData(chatID);
     setupEventListeners();
     setupMessageInputEventListener();
@@ -19,16 +18,6 @@ async function initializeChat() {
 function extractChatId() {
     const pathSegments = window.location.pathname.split('/');
     return pathSegments.pop();
-}
-
-// 서버에 채팅방 이동을 알리는 함수
-async function threadCheck(chatID) {
-    try {
-        const responseOk = await postJson('/api/enter', { chatID });
-        if (!responseOk) throw new Error('Thread check failed');
-    } catch (error) {
-        console.error('Failed to perform thread check:', error);
-    }
 }
 
 // 채팅방 정보 및 메시지 표시 함수
@@ -79,10 +68,17 @@ function displayMessage(message, characterInfo, displayInfo, showTimeSpan = true
 function createInfo(characterInfo) {
     const characterInfoDiv = document.createElement('div');
     characterInfoDiv.className = 'character-info';
-    characterInfoDiv.innerHTML = `
-        <img src="${characterInfo.image}" alt="${characterInfo.name}" class="character-image">
-        <div class="character-name">${characterInfo.name}</div>
-    `;
+
+    const image = document.createElement('img');
+    image.src = characterInfo.image;
+    image.alt = characterInfo.name;
+    image.className = 'character-image';
+
+    const name = document.createElement('div');
+    name.className = 'character-name';
+    name.textContent = characterInfo.name;
+
+    characterInfoDiv.append(image, name);
     return characterInfoDiv;
 }
 
@@ -93,7 +89,10 @@ function createMessageArea(content, timestamp, showTimeSpan) {
 
     const msgBoxDiv = document.createElement('div');
     msgBoxDiv.className = 'msg_box';
-    msgBoxDiv.innerHTML = `<p class="msg">${content}</p>`;
+    const msg = document.createElement('p');
+    msg.className = 'msg';
+    msg.textContent = content; // 메시지는 HTML로 해석하지 않음 (XSS 방지)
+    msgBoxDiv.appendChild(msg);
 
     msgAreaDiv.appendChild(msgBoxDiv);
     msgAreaDiv.appendChild(createStatusBox(timestamp, showTimeSpan));
@@ -233,8 +232,4 @@ function toggleInput(isDisabled) {
     messageInput.disabled = isDisabled;
 
     isDisabled ? messageInput.blur() : messageInput.focus();
-}
-
-function cheat() {
-    ws.send(JSON.stringify({ type: 'timeCk' }));
 }

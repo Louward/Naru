@@ -25,7 +25,13 @@ function setupWebSocketServer(server) {
         console.log(`[세션 ID: ${sessionId} 연결]  사용자 수: ${Object.keys(activeConnections).length}`);
 
         ws.on('message', (message) => {
-            const data = JSON.parse(message);
+            let data;
+            try {
+                data = JSON.parse(message);
+            } catch (error) {
+                console.error('잘못된 메시지 형식:', error.message);
+                return;
+            }
             // 메시지 유형에 따라 적절한 처리를 수행합니다.
             switch (data.type) {
                 case MESSAGE_TYPES.MESSAGE_INPUT:
@@ -130,9 +136,9 @@ async function processMessageBuffer(ws, chatID) {
     console.log(`user : ${buffer.buffer}`);
 
     // AI 응답 처리 시작
-    const msg = buffer.buffer;
+    // 사용자 메시지는 이미 DB에 저장되어 있으므로 AI는 대화 기록에서 읽어감
     buffer.buffer = '';
-    await handleAIMessage(ws, chatID, msg);
+    await handleAIMessage(ws, chatID);
 
     // 처리 후 버퍼에 새로운 메시지가 쌓여있다면 타이머 재설정
     if (buffer.buffer) {
@@ -141,32 +147,34 @@ async function processMessageBuffer(ws, chatID) {
 }
 
 // AI 메시지 처리 함수
-async function handleAIMessage(ws, chatID, message) {
+async function handleAIMessage(ws, chatID) {
     let buffer = ws.chatBuffers[chatID];
 
-    const { characters } = await DBController.getCharacterForChat(chatID);
-
+    let reply, character;
     buffer.isProcessing = true;
-    const AI = await AIController.sendMessageToAI(chatID, characters, message);
-    const aiResponse = await AIController.getAIResponse(AI.threadId, AI.run);
-    buffer.isProcessing = false;
+    try {
+        reply = await AIController.generateReply(chatID);
+        character = await DBController.getCharacter(reply.characterID);
+    } catch (error) {
+        console.error(`AI 응답 생성 실패 (${chatID}):`, error.message);
+        return;
+    } finally {
+        buffer.isProcessing = false;
+    }
 
-    const character = await DBController.getCharacter(AI.characterID);
-    console.log(`ㄴ 답변할 AI: ${character.name}, 시간: ${character.personality}`);
+    console.log(`ㄴ 답변할 AI: ${character.name}, 대기: ${character.personality}ms`);
 
     setTimeout(() => {
-        console.log(`${AI.characterID} : ${aiResponse}`);
-        const responses = aiResponse.split("\n");
-        responses.forEach((resp, index) => {
-            const content = resp.trim(); // 응답의 앞뒤 공백 제거
-            if (content) { // 내용이 실제로 있는 경우에만 작업 진행
-                setTimeout(async () => { // 여기서 setTimeout을 사용하여 각 메시지 처리 사이에 1초 지연
-                    await DBController.saveMessage(chatID, AI.characterID, content);
+        console.log(`${reply.characterID} : ${reply.lines.join(' / ')}`);
+        reply.lines.forEach((content, index) => {
+            setTimeout(async () => { // 말풍선마다 1초 간격
+                try {
+                    await DBController.saveMessage(chatID, reply.characterID, content);
                     broadcastMessage({
                         type: 'ai_response',
                         chatID: chatID,
                         message: {
-                            sender: AI.characterID,
+                            sender: reply.characterID,
                             content: content,
                             timestamp: Date.now()
                         },
@@ -175,10 +183,12 @@ async function handleAIMessage(ws, chatID, message) {
                             image: character.image
                         }
                     });
-                }, index * 1000); // 각 메시지 전달 간격 지정
-            }
+                } catch (error) {
+                    console.error('AI 메시지 저장 실패:', error.message);
+                }
+            }, index * 1000);
         });
-    }, character.personality); // 응답 대기
+    }, character.personality); // 캐릭터 성격에 따른 응답 대기
 }
 
 // 모든 연결된 클라이언트에게 메시지를 브로드캐스트하는 함수

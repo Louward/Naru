@@ -33,14 +33,19 @@ function createMessageItem({ chatID, name, image, lastMessage, lastTime }) {
 
     const listItem = document.createElement('li');
     listItem.className = 'message-item';
-    listItem.innerHTML = `
-        <img src="${image}" alt="${name}">
-        <div class="content">
-            <div class="character-name">${name}</div>
-            <div class="last-message">${displayLastMessage}</div>
-        </div>
-        <div class="last-time">${displayLastTime}</div>
-    `;
+
+    const img = document.createElement('img');
+    img.src = image;
+    img.alt = name;
+
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.append(
+        createTextDiv('character-name', name),
+        createTextDiv('last-message', displayLastMessage)
+    );
+
+    listItem.append(img, content, createTextDiv('last-time', displayLastTime));
 
     // 클릭 이벤트를 설정하여 메시지 항목 클릭 시 해당 대화방으로 이동합니다.
     listItem.addEventListener('click', () => {
@@ -48,6 +53,14 @@ function createMessageItem({ chatID, name, image, lastMessage, lastTime }) {
     });
 
     return listItem;
+}
+
+// 텍스트만 담는 div 생성 (HTML로 해석하지 않음)
+function createTextDiv(className, text) {
+    const div = document.createElement('div');
+    div.className = className;
+    div.textContent = text;
+    return div;
 }
 
 // 응답을 처리하는 함수
@@ -64,4 +77,4 @@ async function response(chatID, message, characterInfo) {
 // 특정 캐릭터의 대화방으로 이동하는 함수
 function moveToMessage(chatID) {
     window.location.href = `/room/${chatID}`;
-}
+}

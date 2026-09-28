@@ -21,6 +21,12 @@ const chatSchema = new mongoose.Schema({
         content: String,
         timestamp: Date
     },
+    // 오래된 대화를 요약해 둔 장기 기억
+    memory: {
+        summary: { type: String, default: '' },
+        summarizedCount: { type: Number, default: 0 }, // 요약에 반영된 메시지 수 (앞에서부터)
+        updatedAt: Date
+    },
     lastActive: {
         type: Date,
         default: Date.now

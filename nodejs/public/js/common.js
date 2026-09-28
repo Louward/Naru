@@ -1,30 +1,19 @@
 ﻿// DOMContentLoaded 이벤트 리스너를 설정하여 페이지 로드 시 초기화 함수를 호출합니다.
 document.addEventListener('DOMContentLoaded', initialize);
 
-// 웹소켓 인스턴스와 서버 설정을 저장할 변수 선언
+// 웹소켓 인스턴스
 let ws;
-let serverAddress;
 
 // 애플리케이션 초기화 함수
-async function initialize() {
-    await fetchServerConfig(); // 서버 설정을 불러옵니다.
+function initialize() {
     connectWebSocket(); // 웹소켓에 연결합니다.
     updateTime(); // 현재 시간을 업데이트합니다.
 }
 
-// 서버 설정을 불러오는 함수
-async function fetchServerConfig() {
-    try {
-        const config = await fetchJson('/config');
-        serverAddress = config.serverAddress;
-    } catch (error) {
-        console.error("Failed to fetch server config:", error);
-    }
-}
-
-// 웹소켓에 연결하고 이벤트 리스너를 설정하는 함수
+// 웹소켓에 연결하고 이벤트 리스너를 설정하는 함수 (페이지를 연 주소로 접속)
 function connectWebSocket() {
-    ws = new WebSocket(`ws://${serverAddress}`);
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${protocol}://${location.host}`);
 
     ws.onopen = () => console.log("Connected to WebSocket server");
     ws.onmessage = handleWebSocketMessage;
@@ -56,15 +45,6 @@ function handleWebSocketMessage(event) {
 function goBack() {
     window.location.href = `/..`;
 }
-
-// 키보드 이벤트 리스너 설정
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'F2') {
-        if (typeof cheat === 'function') {
-            cheat();
-        }
-    }
-});
 
 // 시간을 업데이트하는 함수
 function updateTime() {
@@ -102,4 +82,4 @@ async function fetchJson(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error('데이터를 불러올 수 없습니다.');
     return response.json();
-}
+}
