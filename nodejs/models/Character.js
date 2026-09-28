@@ -3,15 +3,15 @@ const mongoose = require('mongoose');
 const characterSchema = new mongoose.Schema({
     characterID: {
         type: String,
-        unique: true, // °¢ Ä³¸¯ÅÍ ID´Â °íÀ¯ÇØ¾ß ÇÕ´Ï´Ù.
-        required: [true, 'Character ID is required'], // Ä³¸¯ÅÍ ID´Â ÇÊ¼öÀÔ´Ï´Ù.
+        unique: true, // ê° ìºë¦­í„° IDëŠ” ê³ ìœ í•´ì•¼ í•©ë‹ˆë‹¤.
+        required: [true, 'Character ID is required'], // ìºë¦­í„° IDëŠ” í•„ìˆ˜ì…ë‹ˆë‹¤.
     },
     characterName: {
         type: String,
-        required: [true, 'Character name is required'], // Ä³¸¯ÅÍ ÀÌ¸§Àº ÇÊ¼öÀÔ´Ï´Ù.
+        required: [true, 'Character name is required'], // ìºë¦­í„° ì´ë¦„ì€ í•„ìˆ˜ì…ë‹ˆë‹¤.
     },
-    characterImage: String, // ÀÌ¹ÌÁö °æ·Î´Â ¼±ÅÃ »çÇ×ÀÔ´Ï´Ù.
-    characterPersonality: String, // Ä³¸¯ÅÍ ¼º°İÀº ¼±ÅÃ »çÇ×ÀÔ´Ï´Ù.
+    characterImage: String, // ì´ë¯¸ì§€ ê²½ë¡œëŠ” ì„ íƒ ì‚¬í•­ì…ë‹ˆë‹¤.
+    characterPersonality: String, // ìºë¦­í„° ì„±ê²©ì€ ì„ íƒ ì‚¬í•­ì…ë‹ˆë‹¤.
 });
 
 

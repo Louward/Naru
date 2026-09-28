@@ -2,7 +2,7 @@ const { Random } = require('random-js');
 
 class MyRandom extends Random {
     constructor(options) {
-        super(); // ºÎ¸ð Å¬·¡½ºÀÇ »ý¼ºÀÚ È£Ãâ
+        super(); // ë¶€ëª¨ í´ëž˜ìŠ¤ì˜ ìƒì„±ìž í˜¸ì¶œ
         this.options = options;
         this.totalWeight = Object.values(options).reduce((total, weight) => total + weight, 0);
     }
@@ -12,7 +12,7 @@ class MyRandom extends Random {
         for (const option in this.options) {
             threshold -= this.options[option];
             if (threshold <= 0) {
-                return option.toString();  // ¹®ÀÚ¿­·Î º¯È¯ÇÏ¿© ¹ÝÈ¯
+                return option.toString();  // ë¬¸ìžì—´ë¡œ ë³€í™˜í•˜ì—¬ ë°˜í™˜
             }
         }
     }

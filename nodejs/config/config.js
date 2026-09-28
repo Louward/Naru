@@ -1,6 +1,6 @@
 const config = {
-    //serverAddress: '35.216.52.148:3000/', // ¼­¹ö url
-    serverAddress: 'localhost:3000/', // ¼­¹ö url
+    //serverAddress: '35.216.52.148:3000/', // ì„œë²„ url
+    serverAddress: 'localhost:3000/', // ì„œë²„ url
 };
 
 module.exports = config;

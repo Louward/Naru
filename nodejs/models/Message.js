@@ -4,12 +4,12 @@ const Chat = require('./Chat');
 const messageSchema = new mongoose.Schema({
     chatID: {
         type: String,
-        unique: true, // °¢ ¸Ş¼¼Áö ID´Â °íÀ¯ÇØ¾ß ÇÕ´Ï´Ù.
-        required: [true, 'ID is required'], // ¸Ş¼¼Áö ID´Â ÇÊ¼öÀÔ´Ï´Ù.
+        unique: true, // ê° ë©”ì„¸ì§€ IDëŠ” ê³ ìœ í•´ì•¼ í•©ë‹ˆë‹¤.
+        required: [true, 'ID is required'], // ë©”ì„¸ì§€ IDëŠ” í•„ìˆ˜ì…ë‹ˆë‹¤.
     },
     messages: [{
         sender: {
-            type: String, // Ä³¸¯ÅÍ ID OR 'user' ±â·Ï
+            type: String, // ìºë¦­í„° ID OR 'user' ê¸°ë¡
             required: [true, 'Message sender is required'],
         },
         content: {
@@ -23,20 +23,20 @@ const messageSchema = new mongoose.Schema({
     }],
 });
 
-// ¸Ş½ÃÁö ÀúÀå ÈÄ, °ü·Ã Chat ¹®¼­ÀÇ lastMessage ¾÷µ¥ÀÌÆ®
+// ë©”ì‹œì§€ ì €ì¥ í›„, ê´€ë ¨ Chat ë¬¸ì„œì˜ lastMessage ì—…ë°ì´íŠ¸
 messageSchema.post('save', async function () {
-    const lastMessage = this.messages[this.messages.length - 1]; // °¡Àå ÃÖ±Ù ¸Ş½ÃÁö
+    const lastMessage = this.messages[this.messages.length - 1]; // ê°€ì¥ ìµœê·¼ ë©”ì‹œì§€
     await Chat.findOneAndUpdate(
-        { chatID: this.chatID }, // ÂüÁ¶ÇÏ´Â Chat ¹®¼­ Ã£±â
+        { chatID: this.chatID }, // ì°¸ì¡°í•˜ëŠ” Chat ë¬¸ì„œ ì°¾ê¸°
         {
             lastMessage: {
                 sender: lastMessage.sender,
                 content: lastMessage.content,
                 timestamp: lastMessage.timestamp
             },
-            lastActive: Date.now() // ÇöÀç ½Ã°£À¸·Î lastActive ¾÷µ¥ÀÌÆ®
+            lastActive: Date.now() // í˜„ì¬ ì‹œê°„ìœ¼ë¡œ lastActive ì—…ë°ì´íŠ¸
         },
-        { new: true } // ¾÷µ¥ÀÌÆ®µÈ ¹®¼­ ¹İÈ¯
+        { new: true } // ì—…ë°ì´íŠ¸ëœ ë¬¸ì„œ ë°˜í™˜
     );
 });
 
