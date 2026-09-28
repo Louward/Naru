@@ -27,6 +27,8 @@ const chatSchema = new mongoose.Schema({
         summarizedCount: { type: Number, default: 0 }, // 요약에 반영된 메시지 수 (앞에서부터)
         updatedAt: Date
     },
+    lastProactiveAt: Date, // 캐릭터가 마지막으로 먼저 연락한 시각
+    userReadAt: Date, // 사용자가 마지막으로 이 방을 읽은 시각 (안 읽은 메시지 수 계산용)
     lastActive: {
         type: Date,
         default: Date.now

@@ -7,9 +7,15 @@
 # model: sonnet, opus (claude) / codex에서 쓰는 모델 이름 / ollama list 에 있는 모델 이름
 provider:
 model:
-# 답장 속도: fast(2초 뒤) | slow(1분 뒤)
+# 답장 속도: fast(몇 초 뒤) | slow(20초~1분 반 뒤)
 speed: fast
-# 프로필 이미지 (비우면 /images/character/char<characterID>.png)
+# 먼저 연락하는 시간대 (시작-끝, 24시간제. 24를 넘으면 다음날 새벽)
+active_hours: 9-24
+# 먼저 연락하지 않게 하려면 false
+proactive: true
+# 단체방에서 이 캐릭터를 부르는 다른 이름 (쉼표로 구분)
+aliases:
+# 프로필 이미지 (비우면 /images/nikke/<characterID>.png)
 image:
 ---
 # 이름

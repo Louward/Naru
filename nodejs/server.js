@@ -30,6 +30,7 @@ setupWebSocketServer(server);
 server.listen(process.env.PORT || 3000, () => {
     console.log(`Server is running on http://localhost:${process.env.PORT || 3000}`);
     console.log(`AI: ${config.llm.provider} (요약: ${config.llm.summaryProvider || config.llm.provider})`);
+    require('./services/ProactiveService').start();
 });
 
 // 에러 핸들링 미들웨어

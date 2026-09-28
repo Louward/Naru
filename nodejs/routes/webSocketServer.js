@@ -1,28 +1,20 @@
-﻿const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
+const WebSocket = require('ws');
 
-const AIController = require('../controllers/AIController');
 const DBController = require('../controllers/DBController');
+const ReplyService = require('../services/ReplyService');
+const { setServer, broadcast } = require('./broadcast');
 
-const MESSAGE_TYPES = {
-    MESSAGE_INPUT: 'messageInput',
-    TIME_CK: 'timeCk',
-};
+const INPUT_WAIT_MS = 3000; // 사용자가 연달아 보내는 메시지를 모으는 시간
 
-let wss;
-let timeInterval = 3000; // 응답 전달 대기 시간
+// 채팅방별 답장 대기 상태 { chatID: { timer, pending } }
+const rooms = {};
 
 function setupWebSocketServer(server) {
-    wss = new WebSocket.Server({ server });
-    const activeConnections = {};
+    const wss = new WebSocket.Server({ server });
+    setServer(wss);
 
     wss.on('connection', (ws) => {
-        // Initialize ws.chatBuffers when a new connection is established
-        ws.chatBuffers = {};
-
-        const sessionId = uuidv4();
-        activeConnections[sessionId] = ws; // 세션 ID와 웹소켓 연결을 저장
-        console.log(`[세션 ID: ${sessionId} 연결]  사용자 수: ${Object.keys(activeConnections).length}`);
+        console.log(`[접속] 연결 수: ${wss.clients.size}`);
 
         ws.on('message', (message) => {
             let data;
@@ -32,173 +24,70 @@ function setupWebSocketServer(server) {
                 console.error('잘못된 메시지 형식:', error.message);
                 return;
             }
-            // 메시지 유형에 따라 적절한 처리를 수행합니다.
+
             switch (data.type) {
-                case MESSAGE_TYPES.MESSAGE_INPUT:
-                    handleUserMessage(data, ws);
-                    break;
-                case MESSAGE_TYPES.TIME_CK:
+                case 'messageInput':
+                    handleUserMessage(data.chatID, data.input);
                     break;
                 case 'input_status':
-                    console.log(`User is ${data.status} in ${data.chatID}`);
-                    handleInputStatus(ws, data.chatID);
-                    break
+                    // 사용자가 아직 입력 중이면 답장을 조금 더 기다림
+                    if (rooms[data.chatID]?.pending) resetTimer(data.chatID);
+                    break;
+                case 'seen':
+                    DBController.markRead(data.chatID).catch(error => console.error('읽음 처리 실패:', error.message));
+                    break;
                 default:
                     console.log(`알 수 없는 메시지 유형: ${data.type}`);
             }
         });
 
-        ws.on('close', () => {
-            delete activeConnections[sessionId]; // 연결이 종료될 때 해당 세션 ID를 제거
-            console.log(`[세션 ID: ${sessionId} 퇴장]  사용자 수: ${Object.keys(activeConnections).length}`);
-        });
-
-        ws.send(JSON.stringify({ type: 'welcome', message: 'WebSocket 연결이 성공적으로 설정되었습니다.' }));
+        ws.on('close', () => console.log(`[퇴장] 연결 수: ${wss.clients.size}`));
     });
 
     return wss;
 }
 
-// 유저 메세지 처리 함수
-async function handleUserMessage(data, ws) {
-    // 여기에 금칙어등 입력 예외 처리하면 될듯?
+// 사용자 메시지 저장 → 잠시 모았다가 답장
+async function handleUserMessage(chatID, input) {
+    const content = String(input || '').trim();
+    if (!chatID || !content) return;
+
     try {
-        // 입력한 메시지 출력 및 저장
-        await DBController.saveMessage(data.chatID, 'user', data.input);
-        broadcastMessage({
+        await DBController.saveMessage(chatID, 'user', content);
+        broadcast({
             type: 'user_response',
-            chatID: data.chatID,
-            message: {
-                sender: 'user',
-                content: data.input,
-                timestamp: Date.now()
-            }
+            chatID,
+            message: { sender: 'user', content, timestamp: Date.now() },
         });
-        addToMessageBuffer(ws, data.chatID, data.input)
+
+        rooms[chatID] = rooms[chatID] || { timer: null, pending: false };
+        rooms[chatID].pending = true;
+        resetTimer(chatID);
     } catch (error) {
-        console.error(`사용자 메시지 처리 중 오류 발생: ${error}`);
+        console.error(`사용자 메시지 처리 중 오류 발생: ${error.message}`);
     }
 }
 
-// 메시지 버퍼에 입력을 추가하고 타이머를 재설정하는 함수
-function addToMessageBuffer(ws, chatID, input) {
-    // 해당 chatID의 버퍼가 없으면 초기화
-    if (!ws.chatBuffers[chatID]) {
-        ws.chatBuffers[chatID] = {
-            buffer: '',
-            isProcessing: false,
-            inputTimer: null,  // 각 채팅방 별로 타이머를 추가
-             stopTypingCounter: 0
-        };
-    }
-
-    let buffer = ws.chatBuffers[chatID];
-    buffer.buffer += buffer.buffer ? `\n${input}` : input; // 이전 메시지가 있는 경우 줄바꿈 처리
-
-    // 응답을 받으면 타이머 재설정
-    resetInputTimer(ws, chatID);
+function resetTimer(chatID) {
+    const room = rooms[chatID];
+    clearTimeout(room.timer);
+    room.timer = setTimeout(() => processRoom(chatID), INPUT_WAIT_MS);
 }
 
-// Handle typing status
-function handleInputStatus(ws, chatID) {
-    // Make sure the chat buffer exists for the chatID
-    if (!ws.chatBuffers[chatID]) return
+async function processRoom(chatID) {
+    const room = rooms[chatID];
 
-    if (ws.chatBuffers[chatID].buffer !== '') {
-        resetInputTimer(ws, chatID);
-    }
-}
-
-// 입력 타이머를 재설정하는 함수
-function resetInputTimer(ws, chatID) {
-    let buffer = ws.chatBuffers[chatID];
-
-    // 기존 타이머가 설정되어 있다면 초기화
-    if (buffer.inputTimer) clearTimeout(buffer.inputTimer);
-
-    // 새로운 타이머 설정
-    buffer.inputTimer = setTimeout(() => {
-        processMessageBuffer(ws, chatID);
-    }, timeInterval);
-}
-
-// 입력된 메시지를 AI에게 전송하는 함수
-async function processMessageBuffer(ws, chatID) {
-    let buffer = ws.chatBuffers[chatID];
-
-    // AI가 응답중이라면 타이머 재설정
-    if (buffer.isProcessing) {
-        resetInputTimer(ws, chatID);
+    // 이미 답장 중이면 (먼저 연락하기 포함) 끝난 뒤에 다시 시도
+    if (ReplyService.isBusy(chatID)) {
+        resetTimer(chatID);
         return;
     }
 
-    console.log(`Sending message to AI for chatID ${chatID}`);
-    console.log(`user : ${buffer.buffer}`);
+    room.pending = false;
+    await ReplyService.respond(chatID);
 
-    // AI 응답 처리 시작
-    // 사용자 메시지는 이미 DB에 저장되어 있으므로 AI는 대화 기록에서 읽어감
-    buffer.buffer = '';
-    await handleAIMessage(ws, chatID);
-
-    // 처리 후 버퍼에 새로운 메시지가 쌓여있다면 타이머 재설정
-    if (buffer.buffer) {
-        resetInputTimer(ws, chatID);
-    }
-}
-
-// AI 메시지 처리 함수
-async function handleAIMessage(ws, chatID) {
-    let buffer = ws.chatBuffers[chatID];
-
-    let reply, character;
-    buffer.isProcessing = true;
-    try {
-        reply = await AIController.generateReply(chatID);
-        character = await DBController.getCharacter(reply.characterID);
-    } catch (error) {
-        console.error(`AI 응답 생성 실패 (${chatID}):`, error.message);
-        return;
-    } finally {
-        buffer.isProcessing = false;
-    }
-
-    console.log(`ㄴ 답변할 AI: ${character.name}, 대기: ${character.personality}ms`);
-
-    setTimeout(() => {
-        console.log(`${reply.characterID} : ${reply.lines.join(' / ')}`);
-        reply.lines.forEach((content, index) => {
-            setTimeout(async () => { // 말풍선마다 1초 간격
-                try {
-                    await DBController.saveMessage(chatID, reply.characterID, content);
-                    broadcastMessage({
-                        type: 'ai_response',
-                        chatID: chatID,
-                        message: {
-                            sender: reply.characterID,
-                            content: content,
-                            timestamp: Date.now()
-                        },
-                        characterInfo: {
-                            name: character.name,
-                            image: character.image
-                        }
-                    });
-                } catch (error) {
-                    console.error('AI 메시지 저장 실패:', error.message);
-                }
-            }, index * 1000);
-        });
-    }, character.personality); // 캐릭터 성격에 따른 응답 대기
-}
-
-// 모든 연결된 클라이언트에게 메시지를 브로드캐스트하는 함수
-function broadcastMessage(message) {
-    const messageString = JSON.stringify(message);
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(messageString);
-        }
-    });
+    // 답장하는 동안 사용자가 새 메시지를 보냈으면 이어서 답장
+    if (room.pending) resetTimer(chatID);
 }
 
 module.exports = { setupWebSocketServer };

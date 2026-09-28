@@ -18,14 +18,29 @@ exports.getCharacter = async (characterID) => {
     };
 };
 
-// 성격에 따라 응답 시간 매칭
+// 성격에 따라 답장 대기 시간 매칭 (매번 조금씩 다르게)
 function matchingPersonality(personality) {
+    const between = (min, max) => Math.round(min + Math.random() * (max - min));
     switch (personality) {
         case 'slow':
-            return 60000
+            return between(20000, 90000)
         default:
-            return 2000
+            return between(1500, 5000)
     }
+}
+
+// 사용자가 채팅방을 읽음
+exports.markRead = async (chatID) => {
+    await Chat.updateOne({ chatID }, { userReadAt: new Date() });
+};
+
+// 안 읽은 캐릭터 메시지 수
+async function countUnread(chat) {
+    const messageDoc = await Message.findOne({ chatID: chat.chatID });
+    const since = chat.userReadAt ? new Date(chat.userReadAt).getTime() : 0;
+    return (messageDoc?.messages || [])
+        .filter(m => m.sender !== 'user' && new Date(m.timestamp).getTime() > since)
+        .length;
 }
 
 // 채팅방내 캐릭터 조회
@@ -46,13 +61,16 @@ exports.handleChatroomList = async (req, res) => {
         // lastActive 기준으로 내림차순 정렬하여 채팅방 목록을 가져옵니다.
         const chats = await Chat.find({}).sort({ lastActive: -1 });
 
-        const chatRoomDetails = chats.map(chat => ({
+        const chatRoomDetails = await Promise.all(chats.map(async chat => ({
             chatID: chat.chatID,
             name: chat.name,
             image: chat.image,
+            roomType: chat.roomType,
+            memberCount: chat.characters.length,
+            unread: await countUnread(chat),
             lastMessage: chat.lastMessage ? chat.lastMessage.content : '',
             lastTime: chat.lastMessage ? chat.lastMessage.timestamp : ''
-        }));
+        })));
 
         res.json(chatRoomDetails);
     } catch (err) {
@@ -89,8 +107,11 @@ exports.handleChatroomMessages = async (req, res) => {
         const messages = messageDoc ? messageDoc.messages : [];
         messages.sort((a, b) => a.timestamp - b.timestamp);
 
+        await exports.markRead(chatID); // 방을 열면 읽음 처리
+
         const responseData = {
             chatname: chat.name,
+            roomType: chat.roomType,
             characters: characters,
             messages: messages.map(msg => ({
                 sender: msg.sender,
@@ -188,4 +209,4 @@ async function inChat() {
     }
 
     await chats.save();
-};
+};

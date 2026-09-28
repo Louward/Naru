@@ -3,7 +3,7 @@ const num = (value, fallback) => (value !== undefined && value !== '' ? Number(v
 
 const config = {
     // 대화창에서 사용자를 부를 이름
-    userName: process.env.USER_NAME || '사용자',
+    userName: process.env.USER_NAME || '지휘관',
 
     llm: {
         // 기본 AI: claude | codex | ollama (캐릭터 파일에서 캐릭터별로 바꿀 수 있음)
@@ -35,6 +35,19 @@ const config = {
         keepRecent: num(process.env.MEMORY_KEEP_RECENT, 20),
         // 요약본 최대 길이(글자)
         summaryMaxChars: num(process.env.MEMORY_SUMMARY_MAX_CHARS, 2000),
+        // 캐릭터 개인 기억 최대 길이(글자)
+        characterMaxChars: num(process.env.MEMORY_CHARACTER_MAX_CHARS, 1500),
+    },
+
+    // 니케가 먼저 연락하기
+    proactive: {
+        enabled: process.env.PROACTIVE_ENABLED !== 'false',
+        // 캐릭터 한 명이 하루에 먼저 연락하는 최대 횟수
+        maxPerDay: num(process.env.PROACTIVE_MAX_PER_DAY, 2),
+        // 마지막 대화 후 최소 이만큼 지나야 먼저 연락
+        minGapHours: num(process.env.PROACTIVE_MIN_GAP_HOURS, 3),
+        // 20분마다 검사할 때 연락할 확률
+        chance: num(process.env.PROACTIVE_CHANCE, 0.15),
     },
 };
 

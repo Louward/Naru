@@ -1,235 +1,175 @@
-﻿// 페이지 로드 완료 시 초기화 함수 호출
+// 페이지 로드 완료 시 초기화 함수 호출
 document.addEventListener('DOMContentLoaded', initializeChat);
 
-// DOM 요소 참조 및 변수 초기화
-let messagesContainer = document.getElementById('messages');
-let messageInput = document.getElementById('messageInput');
-let messageButton = document.getElementById('messageButton');
+// DOM 요소 참조 및 상태
+const messagesContainer = document.getElementById('messages');
+const messageInput = document.getElementById('messageInput');
+const messageButton = document.getElementById('messageButton');
+const typingArea = document.getElementById('typingArea');
+
+const chatID = decodeURIComponent(window.location.pathname.split('/').pop());
+let characters = {}; // characterID → { name, image }
+let lastRendered = null; // 마지막으로 그린 메시지 { sender, minute, day, element }
+const typingNow = new Map(); // 입력 중인 캐릭터 characterID → name
 
 // 채팅방 초기화 함수
 async function initializeChat() {
-    const chatID = extractChatId();
-    await fetchChatroomData(chatID);
+    await fetchChatroomData();
     setupEventListeners();
-    setupMessageInputEventListener();
 }
 
-// 채팅방 ID 추출 함수
-function extractChatId() {
-    const pathSegments = window.location.pathname.split('/');
-    return pathSegments.pop();
-}
-
-// 채팅방 정보 및 메시지 표시 함수
-async function fetchChatroomData(chatID) {
+// 채팅방 정보 및 메시지 표시
+async function fetchChatroomData() {
     try {
-        const { chatname, characters, messages } = await fetchJson(`/api/${chatID}`);
-        displayChatroomInfo(chatname);
-        displayMessages(characters, messages);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        const data = await fetchJson(`/api/${encodeURIComponent(chatID)}`);
+        characters = data.characters;
+        document.getElementById('chatname').textContent = data.chatname;
+        document.title = `${data.chatname} - 블라블라`;
+
+        if (data.roomType === 'group') {
+            const count = document.getElementById('membercount');
+            count.textContent = Object.keys(characters).length + 1;
+            count.hidden = false;
+        }
+
+        messagesContainer.innerHTML = '';
+        lastRendered = null;
+        // 캐릭터가 마지막으로 말한 이후의 내 메시지는 아직 안 읽음
+        let lastReplyIndex = -1;
+        data.messages.forEach((m, i) => { if (m.sender !== 'user') lastReplyIndex = i; });
+        data.messages.forEach((message, index) => {
+            displayMessage(message, characters[message.sender], message.sender === 'user' && index > lastReplyIndex);
+        });
+        scrollToBottom();
     } catch (error) {
         console.error('Failed to fetch chatroom data:', error);
     }
 }
 
-// 채팅방 정보를 화면에 표시하는 함수
-function displayChatroomInfo(chatname) {
-    document.getElementById('chatname').textContent = chatname;
-    messagesContainer.innerHTML = ''; // 기존 메시지를 클리어
-}
+// 메시지 하나를 화면에 추가
+function displayMessage(message, characterInfo, unread = false) {
+    const time = new Date(message.timestamp);
+    const day = time.toDateString();
+    const minute = `${day} ${time.getHours()}:${time.getMinutes()}`;
 
-// 메시지들을 화면에 표시하는 함수
-function displayMessages(characters, messages) {
-    let previousSender = null;
-    messages.forEach((message, index) => {
-        const characterInfo = characters[message.sender];
-        const displayInfo = message.sender !== previousSender;
-        const showTimeSpan = index === messages.length - 1 || message.sender !== messages[index + 1].sender;
-        displayMessage(message, characterInfo, displayInfo, showTimeSpan);
-        previousSender = message.sender;
-    });
-}
-
-// 메시지를 화면에 표시하는 함수
-function displayMessage(message, characterInfo, displayInfo, showTimeSpan = true) {
-    const messageWrapper = document.createElement('div');
-    messageWrapper.classList.add('message', message.sender === 'user' ? 'sent' : 'received');
-
-    // 발신자 정보를 data-sender 속성으로 추가
-    messageWrapper.setAttribute('data-sender', message.sender);
-
-    if (displayInfo && characterInfo) messageWrapper.appendChild(createInfo(characterInfo));
-    messageWrapper.appendChild(createMessageArea(message.content, message.timestamp, showTimeSpan));
-
-    messagesContainer.appendChild(messageWrapper);
-}
-
-// 캐릭터 정보를 화면에 표시하는 함수
-function createInfo(characterInfo) {
-    const characterInfoDiv = document.createElement('div');
-    characterInfoDiv.className = 'character-info';
-
-    const image = document.createElement('img');
-    image.src = characterInfo.image;
-    image.alt = characterInfo.name;
-    image.className = 'character-image';
-
-    const name = document.createElement('div');
-    name.className = 'character-name';
-    name.textContent = characterInfo.name;
-
-    characterInfoDiv.append(image, name);
-    return characterInfoDiv;
-}
-
-// 메시지 영역 생성 함수
-function createMessageArea(content, timestamp, showTimeSpan) {
-    const msgAreaDiv = document.createElement('div');
-    msgAreaDiv.className = 'msg_area';
-
-    const msgBoxDiv = document.createElement('div');
-    msgBoxDiv.className = 'msg_box';
-    const msg = document.createElement('p');
-    msg.className = 'msg';
-    msg.textContent = content; // 메시지는 HTML로 해석하지 않음 (XSS 방지)
-    msgBoxDiv.appendChild(msg);
-
-    msgAreaDiv.appendChild(msgBoxDiv);
-    msgAreaDiv.appendChild(createStatusBox(timestamp, showTimeSpan));
-
-    return msgAreaDiv;
-}
-
-// 상태 박스 생성 함수
-function createStatusBox(timestamp, showTimeSpan) {
-    const statusBoxDiv = document.createElement('div');
-    statusBoxDiv.className = 'status_box';
-    statusBoxDiv.innerHTML = `<span class="read"></span><span class="date">${timeFormat(timestamp)}</span>`;
-
-    if (!showTimeSpan) {
-        statusBoxDiv.querySelector('.date').style.display = 'none';
+    if (!lastRendered || lastRendered.day !== day) {
+        messagesContainer.appendChild(createText('div', 'date-divider',
+            time.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })));
+        lastRendered = null;
     }
 
-    return statusBoxDiv;
+    // 같은 사람이 같은 분에 연달아 보내면 프로필은 첫 메시지에만, 시간은 마지막 메시지에만
+    const continued = lastRendered && lastRendered.sender === message.sender && lastRendered.minute === minute;
+    if (continued) lastRendered.element.querySelector('.date')?.classList.add('hidden');
+
+    const isUser = message.sender === 'user';
+    const wrapper = document.createElement('div');
+    wrapper.className = `message ${isUser ? 'sent' : 'received'}${continued ? ' continued' : ''}`;
+    wrapper.dataset.sender = message.sender;
+
+    const row = document.createElement('div');
+    row.className = 'bubble-row';
+    const bubble = createText('p', 'msg', message.content); // HTML로 해석하지 않음 (XSS 방지)
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    if (isUser && unread) meta.appendChild(createText('span', 'unread', '1'));
+    meta.appendChild(createText('span', 'date', timeFormat(time)));
+    row.append(bubble, meta);
+
+    if (isUser) {
+        wrapper.appendChild(row);
+    } else {
+        const info = characterInfo || { name: message.sender };
+        const body = document.createElement('div');
+        body.className = 'body';
+        if (!continued) body.appendChild(createText('div', 'character-name', info.name));
+        body.appendChild(row);
+
+        wrapper.append(
+            continued ? createText('div', 'avatar-space', '') : createAvatar(info.name, info.image, 'character-image'),
+            body
+        );
+    }
+
+    messagesContainer.appendChild(wrapper);
+    lastRendered = { sender: message.sender, minute, day, element: wrapper };
+}
+
+function scrollToBottom() {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 // 엔터 키 입력 및 클릭 이벤트 리스너 설정
 function setupEventListeners() {
-    messageInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
+    messageInput.addEventListener('keydown', (event) => {
+        // 한글 조합 중 Enter는 무시 (마지막 글자가 두 번 전송되는 문제 방지)
+        if (event.key === 'Enter' && !event.isComposing) {
             event.preventDefault();
             handleMessageSend();
         }
     });
     messageButton.addEventListener('click', handleMessageSend);
+
+    // 입력 중이면 서버에 알려서 답장을 조금 기다리게 함
+    let lastSent = 0;
+    messageInput.addEventListener('input', () => {
+        if (Date.now() - lastSent < 1500) return;
+        lastSent = Date.now();
+        sendSocket({ type: 'input_status', status: 'typing', chatID });
+    });
 }
 
-// "보내기" 버튼 클릭 또는 엔터 키 입력 처리 함수
+// "보내기" 버튼 클릭 또는 엔터 키 입력 처리
 function handleMessageSend() {
     const input = messageInput.value.trim();
-    if (input) {
-        messageInput.value = ''; // 입력 필드 클리어
-        userResponse(input); // 사용자 메시지 처리
-    }
+    if (!input) return;
+    messageInput.value = '';
+    messageInput.focus();
+    sendSocket({ type: 'messageInput', chatID, input });
 }
 
-// 사용자 입력을 처리하는 함수
-function userResponse(input) {
-    ws.send(JSON.stringify({
-        type: 'messageInput',
-        chatID: extractChatId(),
-        input: input
-    }));
+// 웹소켓 연결(재연결) 시 읽음 처리
+function onSocketOpen() {
+    sendSocket({ type: 'seen', chatID });
 }
 
-// 메시지 입력 필드에 대한 입력 이벤트 리스너를 설정하는 함수
-function setupMessageInputEventListener() {
-    const typingInterval = 2000; // 대기 간격
+// 새 메시지 수신
+function response(targetChatID, message, characterInfo) {
+    if (targetChatID !== chatID) return;
 
-    const throttledSendTypingStatus = throttle(() => {
-        sendTypingStatus('typing');
-    }, typingInterval);
-
-    const debouncedSendStoppedTypingStatus = debounce(() => {
-        if (messageInput.value.trim()) {
-            sendTypingStatus('stopped_typing');
-
-            // 입력 필드가 비어있지 않다면 debounce 함수를 재귀적으로 호출하여 계속 상태를 체크
-            debouncedSendStoppedTypingStatus();
-        }
-    }, typingInterval);
-
-    messageInput.addEventListener('input', () => {
-        throttledSendTypingStatus();
-        debouncedSendStoppedTypingStatus(); // 사용자가 입력을 멈췄을 때 'stopped_typing' 상태를 체크
-    });
-
-    // 입력 상태를 서버에 보내는 함수
-    function sendTypingStatus(status) {
-        ws.send(JSON.stringify({
-            type: 'input_status',
-            status: status,
-            chatID: extractChatId()
-        }));
-    }
-}
-
-// Throttle 함수 구현
-function throttle(callback, limit) {
-    let waiting = false;
-    return function () {
-        if (!waiting) {
-            callback.apply(this, arguments);
-            waiting = true;
-            setTimeout(() => {
-                waiting = false;
-            }, limit);
-        }
-    };
-}
-
-// Debounce 함수 구현
-function debounce(callback, delay) {
-    let timeoutID;
-    return function () {
-        clearTimeout(timeoutID);
-        timeoutID = setTimeout(() => {
-            callback.apply(this, arguments);
-        }, delay);
-    };
-}
-
-// 응답을 처리하는 함수
-function response(chatID, message, characterInfo) {
-    if (chatID !== extractChatId()) {
-        // 여기서 다른 채팅방 알림 처리 가능
-        return
-    } 
-
-    const displayInfo = hideLastTimeSpan(message.sender);
-    displayMessage(message, characterInfo, displayInfo);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-}
-
-// 마지막 시간 간격을 숨기는 함수
-function hideLastTimeSpan(sender = 'user') {
-    const lastMessage = messagesContainer.querySelector(`.message[data-sender="${sender}"]:last-child`)
-
-    if (lastMessage && lastMessage.classList.contains(sender === 'user' ? 'sent' : 'received')) {
-        const lastTimeSpan = lastMessage.querySelector('.status_box .date');
-        if (lastTimeSpan) {
-            lastTimeSpan.style.display = 'none';
-            return false;
-        }
+    if (characterInfo) {
+        characters[message.sender] = characterInfo;
+        typingNow.delete(message.sender);
+        renderTyping();
+        sendSocket({ type: 'seen', chatID });
     }
 
-    return true;
+    const nearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 120;
+    displayMessage(message, characters[message.sender], message.sender === 'user');
+    if (nearBottom || message.sender === 'user') scrollToBottom();
 }
 
-// 사용자 입력 활성화/비활성화를 제어하는 함수
-function toggleInput(isDisabled) {
-    messageButton.disabled = isDisabled;
-    messageInput.disabled = isDisabled;
+// 캐릭터가 읽음 → 내 메시지의 "1" 제거
+function onRead(targetChatID) {
+    if (targetChatID !== chatID) return;
+    messagesContainer.querySelectorAll('.unread').forEach(el => el.remove());
+}
 
-    isDisabled ? messageInput.blur() : messageInput.focus();
+// 입력 중 표시
+function onTyping({ chatID: targetChatID, characterID, name, typing }) {
+    if (targetChatID !== chatID) return;
+    if (typing) typingNow.set(characterID, name || characters[characterID]?.name || characterID);
+    else typingNow.delete(characterID);
+    renderTyping();
+}
+
+function renderTyping() {
+    typingArea.innerHTML = '';
+    if (typingNow.size === 0) return;
+
+    const names = [...typingNow.values()].join(', ');
+    const dots = document.createElement('span');
+    dots.className = 'typing-dots';
+    dots.append(document.createElement('i'), document.createElement('i'), document.createElement('i'));
+    typingArea.append(dots, createText('span', 'typing-text', `${names} 님이 입력 중`));
 }

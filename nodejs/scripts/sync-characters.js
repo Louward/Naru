@@ -1,46 +1,59 @@
-// characters/*.md 파일을 DB에 반영하는 스크립트 (npm run sync)
-// - 파일마다 Character 문서를 만들거나 갱신
-// - 1:1 대화방이 없는 캐릭터는 대화방을 새로 만듦 (chatID = "c<characterID>")
-// 기존 대화 기록은 건드리지 않습니다.
+// characters 폴더의 설정을 DB에 반영하는 스크립트 (npm run sync)
+// - <characterID>.md 마다 Character 문서를 만들거나 갱신
+// - 1:1 대화방이 없는 캐릭터는 대화방을 새로 만듦 (chatID = "c_<characterID>")
+// - _rooms.json 에 적힌 단체방을 만들거나 갱신
+// 기존 대화 기록과 기억은 건드리지 않습니다.
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
 const mongoose = require('mongoose');
 require('../config/MongoDB');
 const Character = require('../models/Character');
 const Chat = require('../models/Chat');
-const { loadPersona } = require('../controllers/PersonaController');
+const { loadPersona, listCharacterIDs, loadRooms } = require('../controllers/PersonaController');
 
-const CHARACTER_DIR = path.join(__dirname, '..', 'characters');
+// 프로필 이미지 기본 경로. public/images/nikke 폴더는 git에 올라가지 않음
+const defaultImage = id => `/images/nikke/${id}.png`;
 
 async function main() {
     await mongoose.connection.asPromise();
 
-    const files = fs.readdirSync(CHARACTER_DIR)
-        .filter(file => file.endsWith('.md') && !file.startsWith('_'));
-
-    if (files.length === 0) {
+    const ids = listCharacterIDs();
+    if (ids.length === 0) {
         console.log('characters 폴더에 캐릭터 파일이 없습니다. _template.md를 복사해서 <characterID>.md로 만들어 주세요.');
     }
 
-    for (const file of files) {
-        const characterID = path.basename(file, '.md');
-        const { meta, body } = loadPersona(characterID);
-        const name = meta.name || (body.match(/^#\s+(.+)$/m) || [])[1]?.trim() || characterID;
-        const image = meta.image || `/images/character/char${characterID}.png`;
+    for (const characterID of ids) {
+        const persona = loadPersona(characterID);
+        const image = persona.meta.image || defaultImage(characterID);
 
         await Character.updateOne(
             { characterID },
-            { characterName: name, characterImage: image, characterPersonality: meta.speed || 'fast' },
+            { characterName: persona.name, characterImage: image, characterPersonality: persona.meta.speed || 'fast' },
             { upsert: true }
         );
 
         const existing = await Chat.findOne({ roomType: 'personal', characters: [characterID] });
         if (!existing) {
-            await Chat.create({ chatID: `c${characterID}`, roomType: 'personal', name, image, characters: [characterID] });
-            console.log(`+ 대화방 생성: ${name} (c${characterID})`);
+            await Chat.create({ chatID: `c_${characterID}`, roomType: 'personal', name: persona.name, image, characters: [characterID] });
+            console.log(`+ 1:1 대화방 생성: ${persona.name}`);
         }
-        console.log(`✓ ${characterID}: ${name}`);
+        console.log(`✓ 캐릭터 ${characterID}: ${persona.name}`);
+    }
+
+    for (const room of loadRooms()) {
+        const missing = room.characters.filter(id => !ids.includes(id));
+        if (missing.length) console.warn(`! ${room.name}: 캐릭터 파일이 없는 멤버 ${missing.join(', ')}`);
+
+        await Chat.updateOne(
+            { chatID: room.chatID },
+            {
+                roomType: 'group',
+                name: room.name,
+                image: room.image || `/images/nikke/${room.chatID}.png`,
+                characters: room.characters,
+            },
+            { upsert: true }
+        );
+        console.log(`✓ 단체방 ${room.chatID}: ${room.name} (${room.characters.length}명)`);
     }
 
     await mongoose.disconnect();
