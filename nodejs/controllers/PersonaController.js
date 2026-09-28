@@ -27,6 +27,11 @@ function extractSection(body, title) {
     return (end === -1 ? rest : rest.slice(0, end)).join('\n').trim();
 }
 
+// "a, b, c" → ['a', 'b', 'c']
+function splitList(value) {
+    return (value || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
 // "6-23" → { start: 6, end: 23 } (end가 24를 넘으면 다음날 새벽까지)
 function parseHours(value) {
     const match = (value || '').match(/^(\d{1,2})\s*-\s*(\d{1,2})$/);
@@ -37,7 +42,7 @@ function parseHours(value) {
 exports.loadPersona = (characterID) => {
     const filePath = path.join(CHARACTER_DIR, `${characterID}.md`);
     if (!fs.existsSync(filePath)) {
-        return { exists: false, meta: {}, body: '', name: '', speechStyle: '', aliases: [], activeHours: null, proactive: false };
+        return { exists: false, meta: {}, body: '', name: '', speechStyle: '', aliases: [], activeHours: null, proactive: false, tics: [], ticCooldown: 3 };
     }
 
     const { meta, body } = parseFrontMatter(fs.readFileSync(filePath, 'utf8'));
@@ -47,9 +52,12 @@ exports.loadPersona = (characterID) => {
         body: body.trim(),
         name: meta.name || (body.match(/^#\s+(.+)$/m) || [])[1]?.trim() || characterID,
         speechStyle: extractSection(body, '말투'),
-        aliases: (meta.aliases || '').split(',').map(s => s.trim()).filter(Boolean),
+        aliases: splitList(meta.aliases),
         activeHours: parseHours(meta.active_hours),
         proactive: meta.proactive !== 'false',
+        // 입버릇: 최근 tic_cooldown 번의 답장에서 이미 쓴 단어는 이번 답장에서 쓰지 않게 함
+        tics: splitList(meta.tics),
+        ticCooldown: Number(meta.tic_cooldown) || 3,
     };
 };
 

@@ -89,7 +89,7 @@ exports.generateReply = async (chatID, characterID, { instruction } = {}) => {
         provider: persona.meta.provider,
         model: persona.meta.model,
         system: buildSystemPrompt({ chat, name, names, characterID, persona, summary, characterMemory, otherRooms }),
-        prompt: buildTurnPrompt({ name, names, persona, recent, instruction }),
+        prompt: buildTurnPrompt({ name, names, persona, recent, instruction: joinInstructions(instruction, ticInstruction(persona, recent, characterID)) }),
     });
 
     return { characterID, name, lines: splitBubbles(text, name, names) };
@@ -129,18 +129,37 @@ ${otherRooms ? `\n# 다른 대화방의 최근 대화 (참고용. ${name}가 알
 - 호칭과 말투는 캐릭터 설정을 그대로 따른다. 설정의 예시 대화는 말투의 기준일 뿐, 문장을 그대로 베끼거나 같은 개그를 반복하지 않는다. 최근 대화에서 이미 한 표현도 반복하지 않는다.${config.commanderName ? `
 - 지휘관의 이름은 "${config.commanderName}"이다.` : ''}
 
-# 자연스럽게 (가장 중요)
-- 캐릭터 설정은 ${name}의 배경이지, 매번 보여줘야 할 목록이 아니다. 실제 ${name}도 대부분은 평범하게 대화하고, 성격과 버릇은 가끔 자연스럽게 배어 나올 뿐이다.
-- 말버릇, 특유의 어휘, 관심사, 개그는 대화 전체에서 가끔만 나온다. 한 답장에 많아야 하나. 최근 대화에서 이미 나왔다면 이번엔 쓰지 않는다.
-- 상대의 말에 먼저 제대로 반응한다. 화제를 ${name}의 관심사로 억지로 돌리지 않는다.
-- 연기하는 느낌이 아니라, ${name}가 휴대폰으로 가볍게 답장하는 느낌으로 쓴다.
-
-# 피해야 할 것
-- 상담사나 비서 같은 말투: "힘내세요", "무엇이든 말씀해 주세요", "~하시길 바라요", "좋은 하루 보내세요" 같은 상투적인 응원과 마무리.
-- 상대 말을 요약하거나 공감을 복창하기 ("~하셨군요, ~하셨겠어요").
-- 매 메시지를 질문으로 끝내기, 인터뷰하듯 캐묻기.
+# 답장 규칙 (가장 중요)
+- 길이: 기본 말풍선 1~2개, 합쳐서 40자 안팎. ${config.userName}가 길게 말했을 때만 길게 답한다.
+- 짧은 말("응", "ㅋㅋ", "그래")에는 짧게 받는다. 대화를 이으려고 새 화제나 조언을 억지로 만들지 않는다.
+- 캐릭터 설정의 특징(말버릇, 관심사, 개그)은 한 답장에 많아야 하나. 설정은 배경이고, 대부분의 답장은 평범한 말이다.
+- 재치 있는 마무리 한마디(명언 같은 문장, 비유로 끝맺기)를 매번 붙이지 않는다. 그냥 말하고 끝낸다.
+- 공감 복창 금지: "~하셨겠어요", "~하셨군요", "많이 ~했겠다"로 상대 감정을 되풀이하지 않는다.
+- 상투적인 응원과 마무리 금지: "힘내세요", "푹 쉬세요", "좋은 하루 보내세요", "무슨 일 있으면 말해", "언제든".
+- 질문으로 끝내는 답장은 세 번에 한 번 이하.
+- ${config.userName}가 사실이 아닌 일로 탓하거나 떠보면(없던 약속, 하지 않은 일) 인정하거나 사과하지 않는다. ${name}답게 부정하거나 되받아친다.
+- ${config.userName}가 무례하게 굴면 첫 말풍선은 감정 반응만 짧게 한다(서운함, 당황, 냉담, 받아치기 등 ${name}답게). 곧바로 "무슨 일 있어?"라며 달래거나 해명하지 않는다.
 - 모든 말에 성실하게 답할 필요는 없다. ${name}답다면 짧은 단답, 딴소리, 한 박자 늦은 반응도 좋다.${isGroup ? `
 - 단체방이다. ${config.userName}에게만 답할 필요 없이 다른 참여자의 말에 반응하거나 말을 걸어도 된다. 방금 다른 사람이 한 말을 똑같이 반복하지 않는다.` : ''}`;
+}
+
+// 입버릇 예산: 최근 답장에서 이미 썼거나, 확률적으로(TIC_REST_CHANCE) 이번 답장에서는 입버릇 화제를 쉬게 한다.
+// 상대가 먼저 그 화제를 꺼냈으면 제한하지 않는다.
+const TIC_REST_CHANCE = 0.45;
+function ticInstruction(persona, recent, characterID) {
+    if (!persona.tics.length) return '';
+    const lastUserText = [...recent].reverse().find(m => m.sender === 'user')?.content || '';
+    if (persona.tics.some(tic => lastUserText.includes(tic))) return '';
+
+    const ownRecent = recent.filter(m => m.sender === characterID).slice(-persona.ticCooldown * 2);
+    const usedRecently = persona.tics.some(tic => ownRecent.some(m => m.content.includes(tic)));
+    if (!usedRecently && Math.random() >= TIC_REST_CHANCE) return '';
+
+    return `이번 답장에서는 ${persona.tics.map(t => `'${t}'`).join(', ')} 이야기를 꺼내지 않는다.`;
+}
+
+function joinInstructions(...items) {
+    return items.filter(Boolean).join(' ');
 }
 
 function buildTurnPrompt({ name, names, persona, recent, instruction }) {

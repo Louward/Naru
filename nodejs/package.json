@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "sync": "node scripts/sync-characters.js"
+    "sync": "node scripts/sync-characters.js",
+    "voice-check": "node scripts/voice-check.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
