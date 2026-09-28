@@ -9,7 +9,7 @@ exports.getCharacter = async (characterID) => {
         throw new Error('Character not found');  // 에러를 throw 하여 처리
     }
 
-    const time = matchingPersonality(character.personality)
+    const time = matchingPersonality(character.characterPersonality)
 
     return {
         name: character.characterName,

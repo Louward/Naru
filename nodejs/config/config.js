@@ -4,6 +4,8 @@ const num = (value, fallback) => (value !== undefined && value !== '' ? Number(v
 const config = {
     // 대화창에서 사용자를 부를 이름
     userName: process.env.USER_NAME || '지휘관',
+    // 지휘관의 이름 (선택. 이름으로 부르는 캐릭터가 사용)
+    commanderName: process.env.COMMANDER_NAME || '',
 
     llm: {
         // 기본 AI: claude | codex | ollama (캐릭터 파일에서 캐릭터별로 바꿀 수 있음)
