@@ -26,6 +26,14 @@ API 키 없이 **내 PC에 로그인된 CLI**를 사용합니다.
 
 ## 실행 방법
 
+### 윈도우에서 간단히
+
+1. 준비물 설치: [Node.js LTS](https://nodejs.org), [MongoDB Community Server](https://www.mongodb.com/try/download/community) (설치할 때 "서비스로 실행" 선택), [Claude Code](https://claude.com/claude-code) (설치 후 터미널에서 `claude` 를 한 번 실행해 로그인)
+2. `nodejs` 폴더의 **`start.bat`** 을 더블클릭합니다. 처음에는 `.env` 가 만들어지니 내용을 확인하고 닫은 뒤 다시 실행하세요.
+3. 브라우저가 `http://localhost:3000` 으로 열립니다.
+
+### 직접 실행
+
 ```bash
 cd nodejs
 npm install
