@@ -212,6 +212,7 @@ function splitBubbles(text, name, names) {
         if (otherSpeaker.test(line) && !line.startsWith(`[${name}]`)) break; // 다른 사람 대사를 이어 쓰기 시작하면 중단
         if (/^\(.*(뒤|후)\)$/.test(line)) continue; // 시간 간격 표시를 따라 쓴 경우
         if (/금지|이번 답장|말풍선|^\(상황\)/.test(line)) continue; // 규칙이나 지시문이 새어 나온 경우
+        if (/^\[[^\]]*\]$/.test(line)) continue; // "[…]" 같은 대괄호만 있는 줄
         line = line.replace(ownPrefix, '').replace(/^["“](.*)["”]$/, '$1').trim();
         if (line) lines.push(line);
     }
