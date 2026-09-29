@@ -1,17 +1,22 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { ServerApiVersion } = require('mongodb');
 const mongoose = require('mongoose');
 
-const password = encodeURIComponent(process.env.DB_PASSWORD);
-const dbname = "myDatabase";
-const uri = `mongodb+srv://johndoe5223g:${password}@naru.sbwjpox.mongodb.net/${dbname}`;
+// MONGODB_URIê°€ ìˆìœ¼ë©´ ê·¸ëŒ€ë¡œ ì‚¬ìš©í•˜ê³ , ì—†ìœ¼ë©´ ê¸°ì¡´ Atlas ì„¤ì •(DB_USER/DB_PASSWORD)ìœ¼ë¡œ ì¡°í•©
+function buildUri() {
+    if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
 
-mongoose.connect(uri, {
+    const user = encodeURIComponent(process.env.DB_USER || 'johndoe5223g');
+    const password = encodeURIComponent(process.env.DB_PASSWORD);
+    const host = process.env.DB_HOST || 'naru.sbwjpox.mongodb.net';
+    const dbname = process.env.DB_NAME || 'myDatabase';
+    return `mongodb+srv://${user}:${password}@${host}/${dbname}`;
+}
+
+mongoose.connect(buildUri(), {
     serverApi: ServerApiVersion.v1
 }).then(() => {
-    console.log("Successfully connected to MongoDB Atlas!");
+    console.log("Successfully connected to MongoDB!");
 }).catch(err => {
     console.error("Connection error", err);
-    process.exit();
+    process.exit(1);
 });
-
-// ÀÌÁ¦ µ¥ÀÌÅÍº£ÀÌ½º ÀÛ¾÷À» ¼öÇàÇÒ ¼ö ÀÖ½À´Ï´Ù.

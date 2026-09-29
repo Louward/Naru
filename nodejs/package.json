@@ -1,4 +1,11 @@
 {
+  "name": "naru",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node scripts/sync-characters.js",
+    "voice-check": "node scripts/voice-check.js"
+  },
   "dependencies": {
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
@@ -7,7 +14,6 @@
     "mongodb": "^6.3.0",
     "mongoose": "^8.2.3",
     "node-cron": "^3.0.3",
-    "openai": "^4.26.0",
     "random-js": "^2.1.0",
     "uuid": "^9.0.1",
     "ws": "^8.16.0"

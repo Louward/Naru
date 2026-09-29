@@ -1,90 +1,111 @@
-.container {
-    display: flex;
-    flex-direction: column;
-    width: 430px;
-    height: 680px;
-    box-shadow: 0 0 10px rgba(0.1, 0.1, 0.1, 0.5);
-    background: #f9f9f9;
-    overflow: hidden; /* »õ·Î Ãß°¡: ¿À¹öÇÃ·Î¿ì ÄÁÅÙÃ÷ ¼û±è */
+:root {
+    --accent: #ffac00;
+    --accent-dark: #e69500;
+    --accent-soft: #ffac00;
+    --bg: #f2f2f2;
+    --surface: #ffffff;
+    --text: #222222;
+    --text-sub: #7b7b7b;
+    --line: #e6e2dc;
+    --header-h: 56px;
 }
 
-/* ¸ğ¹ÙÀÏ ºäÆ÷Æ® Å©±â¿¡ µû¸¥ ½ºÅ¸ÀÏ */
-@media only screen and (max-width: 767px) {
-    .container {
-        width: 100%; /* ¸ğ¹ÙÀÏ È­¸é ³Êºñ¿¡ ¸ÂÃã */
-        height: 100%; /* ¶Ç´Â ½ÇÁ¦ ºäÆ÷Æ® ³ôÀÌ¿¡ ¸Â´Â °ª */
-        overflow: auto; /* ÇÊ¿ä ½Ã ½ºÅ©·Ñ */
-    }
+* {
+    box-sizing: border-box;
+}
 
-    .header {
-        position: fixed; /* Çì´õ¸¦ »ó´Ü¿¡ °íÁ¤ */
-        top: 0;
-        width: 100vw; /* ºäÆ÷Æ® ³Êºñ¿¡ ¸ÂÃã */
-        box-sizing: border-box; /* ÆĞµù°ú Å×µÎ¸®¸¦ ³Êºñ¿¡ Æ÷ÇÔ */
-        z-index: 10;
-        background: orange; /* ¹è°æ»ö À¯Áö */
-        /* ±âÅ¸ ½ºÅ¸ÀÏ */
-    }
+html, body {
+    height: 100%;
 }
 
 body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh; /* ºäÆ÷Æ®ÀÇ ³ôÀÌ¿¡ ¸ÂÃã */
     margin: 0;
-    background: white;
-    font-family: 'Arial', sans-serif;
-    background-image: url('../images/background/art_download.png'); /* ¹è°æ ÀÌ¹ÌÁö ¼³Á¤ */
-    background-size: cover; /* ¹è°æ ÀÌ¹ÌÁö°¡ ºäÆ÷Æ®¸¦ ÀüÃ¼ÀûÀ¸·Î Ä¿¹öÇÏµµ·Ï ¼³Á¤ */
-    background-position: top; /* ¹è°æ ÀÌ¹ÌÁö°¡ Áß¾Ó¿¡ À§Ä¡ÇÏµµ·Ï ¼³Á¤ */
-    background-repeat: no-repeat; /* ¹è°æ ÀÌ¹ÌÁö°¡ ¹İº¹µÇÁö ¾Êµµ·Ï ¼³Á¤ */
+    color: var(--text);
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    background: #2b2b2b url('../images/background/art_download.png') center top / cover no-repeat;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 430px;
+    height: min(820px, 100vh);
+    background: var(--bg);
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+
+/* íœ´ëŒ€í°ì—ì„œëŠ” í™”ë©´ ì „ì²´ ì‚¬ìš© */
+@media (max-width: 600px) {
+    body {
+        background: var(--bg);
+    }
+
+    .container {
+        width: 100%;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+    }
 }
 
 .header {
     position: relative;
-    background: orange;
-    color: white;
-    padding: 10px;
-    text-align: center;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--header-h);
+    padding: 0 14px;
+    padding-top: env(safe-area-inset-top);
+    background: var(--accent);
+    color: #fff;
 }
 
-    .header .time {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-    }
+.header .title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
 
-    .header .exit {
-        top: 10px;
-        left: 20px;
-        font-size: 20px;
-        font-size: 24px;
-        font-weight: bold;
-    }
+.header .time {
+    position: absolute;
+    right: 14px;
+    font-size: 12px;
+    opacity: 0.85;
+}
 
-/* ½ºÅ©·Ñ¹Ù ÀüÃ¼ ½ºÅ¸ÀÏ */
+.member-count {
+    margin-left: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.75;
+}
+
+/* ì´ë¯¸ì§€ê°€ ì—†ì„ ë•Œ ì´ë¦„ ì²« ê¸€ì ì•„ë°”íƒ€ */
+.avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ìŠ¤í¬ë¡¤ë°” */
 ::-webkit-scrollbar {
-    width: 0.7vh; /* ½ºÅ©·Ñ¹ÙÀÇ ³Êºñ */
+    width: 6px;
 }
 
-/* ½ºÅ©·Ñ¹Ù ÇÚµé ½ºÅ¸ÀÏ */
 ::-webkit-scrollbar-thumb {
-    background: #888; /* ÇÚµéÀÇ »ö»ó */
-    border-radius: 6px; /* ÇÚµéÀÇ µÕ±Ù ¸ğ¼­¸® */
-    height: 10vh; /* thumb ³ôÀÌ */
-}
-
-/* ½ºÅ©·Ñ¹Ù Æ®·¢(¹è°æ) ½ºÅ¸ÀÏ */
-::-webkit-scrollbar-track {
-}
-
-/* ±âº» ½ºÅ©·Ñ¹Ù ½ºÅ¸ÀÏ */
-::-webkit-scrollbar-thumb {
-    background: #888;
-}
-
-/* ½ºÅ©·Ñ Áß ½ºÅ©·Ñ¹Ù ½ºÅ¸ÀÏ */
-.scroll-active::-webkit-scrollbar-thumb {
-    background: #555;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
 }
